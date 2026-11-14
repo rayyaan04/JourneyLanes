@@ -15,7 +15,8 @@ public class playermovement : MonoBehaviour
     {
         speed = (transform.position - lastPosition).magnitude;
         lastPosition = transform.position;
-        speedometer.text = "Speed: " + speed * 50;
+        // distance moved this physics step divided by the length of the step gives units per second, rounded for display
+        speedometer.text = "Speed: " + Mathf.RoundToInt(speed / Time.fixedDeltaTime);
         float moveInput = 0f;
         float turnInput = 0f;
 

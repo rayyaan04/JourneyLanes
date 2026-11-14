@@ -6,6 +6,8 @@ public class LaneDetection : MonoBehaviour
 {
     private float wrongLaneTimer = 0; // timer to see how long user stays in trigger zone
     private bool isInWrongLane = false;
+    private bool warningGiven = false; // true once the 2 second warning and penalty have been given for this visit
+    private bool restartQueued = false; // true once the level restart has been scheduled
     public TMP_Text warningText; 
 
     void Start()
@@ -33,13 +35,15 @@ public class LaneDetection : MonoBehaviour
                 {
                     wrongLaneTimer = wrongLaneTimer + Time.deltaTime; // Start counting the time the car stays in the wrong lane
                 }
-                if (wrongLaneTimer > 2 & wrongLaneTimer < 2.1) // warn after 2 seconds
+                if (wrongLaneTimer > 2 && warningGiven == false) // warn after 2 seconds, only once per visit to the wrong lane
                 {
+                    warningGiven = true;
                     warningText.text = "Warning: Stay in the left lane"; // output warning to text
                     FindFirstObjectByType<PointsManager>().DecreasePoints(5, "Driving in wrong lane");
                 }
-                if (wrongLaneTimer >= 5)
+                if (wrongLaneTimer >= 5 && restartQueued == false) // only schedule the restart once
                 {
+                    restartQueued = true;
                     warningText.text = "Spent too much time in wrong lane. Restarting level"; // Show penalty message
                                                                                               // Restarts the level after 2 seconds
                     Invoke("RestartLevel", 2);
@@ -60,6 +64,7 @@ public class LaneDetection : MonoBehaviour
             if (carCollider.CompareTag("Player"))
             {
                 isInWrongLane = false;
+                warningGiven = false; // lets the next visit to the wrong lane be warned and penalised again
                 wrongLaneTimer = 0f; // Reset the timer when leaving the right lane
                 warningText.text = ""; // Clear warning text when leaving the right lane
             }

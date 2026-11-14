@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 
@@ -188,9 +189,10 @@ public class Authentication : MonoBehaviour
                 process.StandardInput.Write(JsonUtility.ToJson(request));
                 process.StandardInput.Close();
 
-                // Read everything the script printed
-                string output = process.StandardOutput.ReadToEnd();
-                string errors = process.StandardError.ReadToEnd();
+                // Read everything the script prints on two background threads
+                // reading here directly would wait until the script finished, so the timeout below could never fire
+                Task<string> outputTask = Task.Run(() => process.StandardOutput.ReadToEnd());
+                Task<string> errorTask = Task.Run(() => process.StandardError.ReadToEnd());
 
                 // Stop waiting if the script takes too long so the game does not freeze
                 if (!process.WaitForExit(timeoutSeconds * 1000))
@@ -198,6 +200,10 @@ public class Authentication : MonoBehaviour
                     process.Kill();
                     return Failure("The authentication service took too long to respond.");
                 }
+
+                // The script has finished, so both reads complete straight away
+                string output = outputTask.Result;
+                string errors = errorTask.Result;
 
                 
                 if (!string.IsNullOrWhiteSpace(errors))

@@ -1,12 +1,10 @@
 using UnityEngine;
 using TMPro;
-using Unity.VisualScripting;
 
 public class StopSignTriggerDetection : MonoBehaviour
 {
     private float stopSignTimer = 0f; // timer to track how long car waits at stop sign
     private bool passedCheck = false;
-    private bool passedSignWithoutWaiting = false; // checks if user went past stop sign before 3 seconds pass
     public TMP_Text warningText;
     public GameObject stopSignSecondTrigger;
     public GameObject stopSignFirstTrigger;
@@ -36,13 +34,12 @@ public class StopSignTriggerDetection : MonoBehaviour
                 if (stopSignTimer < 3f)
                 { // deducts points when the user passes stop sign without waiting
                     FindFirstObjectByType<PointsManager>().DecreasePoints(150, "Passed a stop sign without waiting.");
-                    passedSignWithoutWaiting = true; 
                     warningText.text = "You didn't wait at the stop sign for 3 seconds. Points removed";
                     Debug.Log("car went past stop sign too early");
                     showWarningMessage = true; // triggers error message display
                     warningMessageTimer = 0f; // reset error message timer
-                    stopSignSecondTrigger.SetActive(false); 
-                    stopSignFirstTrigger.SetActive(false); // disables both triggers (line above is commented for htis too)
+                    DisableTrigger(stopSignSecondTrigger);
+                    DisableTrigger(stopSignFirstTrigger); // disables both triggers so the same sign cannot be scored twice
                 }
             }
         }
@@ -56,13 +53,11 @@ public class StopSignTriggerDetection : MonoBehaviour
             if (this.CompareTag("StopSignInitial"))
             {
                 stopSignTimer = stopSignTimer + Time.deltaTime; // start timer for how long the car stays in the trigger zone
-                Debug.Log("Stop sign timer: " + stopSignTimer);
 
                 if (stopSignTimer >= 3f)
                 {
                     passedCheck = true;
-                    Debug.Log("player has waited 3 seconds");
-                    stopSignSecondTrigger.SetActive(false); // deactivate the second trigger zone
+                    DisableTrigger(stopSignSecondTrigger); // deactivate the second trigger zone
                 }
             }
         }
@@ -79,22 +74,24 @@ public class StopSignTriggerDetection : MonoBehaviour
                 if (passedCheck == true) {
                     FindFirstObjectByType<PointsManager>().IncreasePoints(50, "Safely waited at a stop sign.");
                     passedCheck = false;
-                    stopSignFirstTrigger.SetActive(false);
+                    DisableTrigger(stopSignFirstTrigger);
                 }
                 stopSignTimer = 0f; 
                 warningText.text = "";
             }
-            if (this.CompareTag("StopSignFinal") && passedSignWithoutWaiting)
-            {
-                // Error message is already shown, we just need to ensure it's displayed for 3 seconds
-                warningMessageTimer += Time.deltaTime;
-                if (warningMessageTimer >= 3f)
-                {
-                    warningText.text = ""; // Clear the error message after 3 seconds
-                    showWarningMessage = false; // Stop showing the error message
-                    warningMessageTimer = 0f; // Reset the timer
-                }
-            }
+        }
+    }
+
+    // turns a trigger zone off by disabling its collider and hiding its mesh
+    // the object itself stays active, so this script keeps running and Update() can still clear the warning message
+    private void DisableTrigger(GameObject triggerZone)
+    {
+        triggerZone.GetComponent<Collider>().enabled = false;
+
+        Renderer zoneRenderer = triggerZone.GetComponent<Renderer>();
+        if (zoneRenderer != null)
+        {
+            zoneRenderer.enabled = false;
         }
     }
 
