@@ -20,9 +20,9 @@ This build is a single demo level. It is deliberately built as a base rather tha
 **Driving and road systems**
 
 - **NPC traffic.** Other vehicles follow the road and obstruct the player's path, forcing the player to react to live traffic rather than an empty road.
-- **Traffic lights and street signs** placed along the route.
+- **Street signs** placed along the route.
 - **Road scenarios.** Merging and meeting situations that mirror real driving decisions.
-- **Speed checks and limits** enforced along sections of the road.
+- **Speedometer and a capped top speed**, the base for speed limit checks.
 
 **Assessed driving behaviour**
 
@@ -32,13 +32,23 @@ This build is a single demo level. It is deliberately built as a base rather tha
 
 **Theory questions**
 
-- Multiple-choice questions covering road and street sign knowledge, vehicle safety, and motorway rules, triggered by relevant objects that the player drives past.
+- A multiple-choice question on a road sign, triggered when the player drives past it. The game pauses until it is answered.
 - **Explanation on a wrong answer.** When the player answers incorrectly, the correct answer is shown, rather than just marking it wrong.
-- **End-of-level points breakdown**, showing where points were gained and lost across the level.
+- **Live points feedback.** Every gain or loss appears on the HUD with a short reason as it happens.
 
 **Accounts**
 
-- Sign-up and login backed by a SQL database, with stored passwords being hashed with SHA256
+- Sign-up and login backed by a SQLite database, with passwords stored as salted scrypt hashes.
+
+## Planned
+
+These are not in the demo yet. Each one builds on the systems above rather than needing new ones.
+
+- **Traffic lights**, using the same trigger and scoring pattern as the stop sign.
+- **Speed limit zones and speed checks**, reading the speed the speedometer already measures.
+- **More questions across more topics**, including vehicle safety and motorway rules, loaded from a data file instead of being written into the script.
+- **End-of-level points breakdown**, showing where points were gained and lost across the level.
+- **Saved progress per account**, so scores are kept against the logged-in user.
 
 ## Design
 
@@ -74,7 +84,9 @@ This pattern can transfer directly to other rules. Traffic lights, roundabout en
 
 ### Database and authentication
 
-Accounts live in a SQLite database, created automatically on first run, with a `users` table holding the username as the primary key and the SHA-256 hash of the password. Storing passwords in plaintext would be a serious security risk, and hashing means that even I cannot read a user's password, since the operation is one-way.
+Accounts live in a SQLite database, created automatically on first run, with a `users` table holding the username as the primary key and a hash of the password. Storing passwords in plaintext would be a serious security risk, and hashing means that even I cannot read a user's password, since the operation is one-way.
+
+Passwords are hashed with scrypt and a random 16-byte salt per user, both from Python's standard library. The first version used plain SHA-256, which is designed to be fast, so anyone holding a copy of the database could test guesses at an enormous rate, and two users with the same password had the same hash. scrypt is deliberately slow and memory-hungry, and the salt makes every stored hash different. Accounts created under the old scheme are upgraded to scrypt the next time they log in successfully.
 
 Authentication itself runs in a Python script that the Unity client launches as a separate process, passing credentials over standard input and receiving a JSON result. Splitting it out this way keeps the credential handling and the database schema in one place, independent of the game code.
 
@@ -82,7 +94,7 @@ Because the username is the primary key, SQLite indexes it, so login is a single
 
 Login returns the same message whether the username or the password was wrong, so the response cannot be used to work out which usernames exist. The hash comparison uses a constant-time check rather than `==`.
 
-The game's own save data does not use a database, because it only needs static storage rather than querying.
+Save data for level progress is not built yet. When it is, it will not use a database, because it only needs static storage rather than querying.
 
 ### Levels and scoring
 
@@ -90,7 +102,7 @@ Topics are intended to be separated into individual levels, so, for example, a r
 
 Level content is pre-made rather than randomised or procedurally generated. This saves memory and processing, and it keeps scoring consistent, since a randomised level would vary in difficulty between attempts and make grades incomparable. It also lets players repeat a level and improve on a specific topic they may be weak on
 
-Each level has its own point total based on its objectives and obstacles. The player starts at zero and gains points for correct actions, loses for incorrect ones, and instantly fails when crashing. Points update live on the HUD and are broken down at the end of the level.
+Each level has its own point total based on its objectives and obstacles. The player starts at zero and gains points for correct actions, loses for incorrect ones, and instantly fails when crashing. Points update live on the HUD with the reason for each change. A breakdown at the end of the level is planned.
 
 ### Accessibility and usability
 
